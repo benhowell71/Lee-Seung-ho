@@ -1,0 +1,289 @@
+setwd("~/Ben/Baseball/KBO 2020/Player Analysis/Lee Seung-ho")
+##############Stats##############
+leepbp <- data %>%
+  filter(Player == "Lee Seung-ho")
+
+lee <- read.csv("lee.csv")
+
+lee3 <- lee %>%
+  group_by(Month) %>%
+  summarise(IP = sum(IP)) 
+  
+lee2 <- lee %>%
+  group_by(Month) %>%
+  summarise(H = sum(H))
+
+lee4 <- lee %>%
+  group_by(Month) %>%
+  summarise(HR = sum(HR))
+
+lee5 <- lee %>%
+  group_by(Month) %>%
+  summarise(K = sum(SO))
+
+lee6 <- lee %>%
+  group_by(Month) %>%
+  summarise(ER = sum(ER))
+
+lee7 <- lee %>%
+  group_by(Month) %>%
+  summarise(BB = sum(BB + HB))
+
+leestat <- right_join(lee2, lee3, by = "Month")
+leestat <- right_join(leestat, lee4, by = "Month")
+leestat <- right_join(leestat, lee5, by = "Month")
+leestat <- right_join(leestat, lee6, by = "Month")
+leestat <- right_join(leestat, lee7, by = "Month")
+
+leestat <- leestat %>%
+  mutate(ERA = round((ER / IP) * 9, digits = 2)) %>%
+  mutate(`H/9` = round((H / IP) * 9, digits = 1)) %>%
+  mutate(`HR/9` = round((HR / IP) * 9, digits = 1)) %>%
+  mutate(`K/9` = round((K / IP) * 9, digits = 1)) %>%
+  mutate(`BB/9` = round((BB / IP) * 9, digits = 1))
+
+
+unique(leepbp$Month)
+
+leestats <- leestat %>%
+  select(Month, IP, ERA:`BB/9`)
+
+leepbp <- leepbp %>%
+  mutate(Month = ifelse(Date >= 8, "August", 
+                        ifelse(Date < 7, "June", "July")))
+leejune <- leepbp %>%
+  filter(Month == "June")
+leejuly <- leepbp %>%
+  filter(Month == "July")
+leeaug <- leepbp %>%
+  filter(Month == "August")
+leegood <- rbind(leejune, leeaug)
+
+leegood2 <- count(leepbp, Month, Result)
+leegood3 <- spread(leegood2, Result, n, fill = 0)
+
+leegood4 <- leegood3 %>%
+  mutate(Pitches  = `1` + `2`  + `4` + b + f + fo + go + hbp + s + ss) %>%
+  mutate(Strike = round(((s + ss + `1` + `2`  + `4` + f + fo + go) / Pitches)*100, digits = 1)) %>%
+  mutate(Whiff = round((ss) / (ss + `1` + `2`  + `4` + f + fo + go) * 100, digits = 1)) %>%
+  mutate(SwStr = round((ss / (Pitches)) * 100, digits = 1)) %>%
+  mutate(CSW = round(((ss + s) / Pitches) * 100, digits = 1)) %>%
+  mutate(CS = round((s / Pitches) * 100, digits = 1)) %>%
+  mutate(Swing = round(((ss + `1` + `2`  + `4` + f + fo + go) / (Pitches))*100, digits = 1)) %>%
+  mutate(Contact = round(((`1` + `2`  + `4` + f + fo + go) / (ss + `1` + `2` + `4` + f + fo + go) * 100), digits = 1)) %>%
+  mutate(`GO/FO` = round(go / fo, digits = 2))
+
+head(leegood4)
+
+leedf <- leegood4 %>%
+  select(Month, Pitches, Strike, Whiff, SwStr, CS, CSW, Swing, Contact, `GO/FO`)
+
+head(leedf)
+
+names(leedf) <- c("Month", "Pitches", "Strike%", "Whiff%", "SwStr%", "CS%", "CSW%", "Swing%", "Contact%", "GO/FO")
+
+leedf <- right_join(leedf, leestats, by = "Month", fill = 0)
+#############Pitch Usage###################
+usg <- count(leepbp, Month, Pitch)
+usg <- spread(usg, Pitch, n, fill = 0)
+
+head(usg)
+usgdf <- usg %>%
+  mutate(Pitches = `4-Seam` + Changeup + Curveball + Slider ) %>%
+  mutate(FF.USG = round((`4-Seam` / Pitches)*100, digits = 1)) %>%
+  mutate(CH.USG = round((Changeup / Pitches) *100, digits = 1)) %>%
+  mutate(CU.USG = round((Curveball / Pitches) *100, digits = 1)) %>%
+  mutate(SL.USG = round((Slider / Pitches) *100, digits = 1))
+
+####################Velo###############
+
+leeff <- leepbp %>%
+  filter(Pitch == "4-Seam") %>%
+  select(Month, Velocity)
+
+leeffdf <- leeff %>%
+  group_by(Month) %>%
+  summarise(FF.Velo = round((mean(Velocity, na.rm = TRUE)), digits = 1))
+
+leech <- leepbp %>%
+  filter(Pitch == "Changeup") %>%
+  select(Month, Velocity)
+chdf <- leech %>%
+  group_by(Month) %>%
+  summarise(CH.Velo = round((mean(Velocity, na.rm = TRUE)), digits = 1))
+
+cu <- leepbp %>%
+  filter(Pitch == "Curveball") %>%
+  select(Month, Velocity)
+cudf <- cu %>%
+  group_by(Month) %>%
+  summarise(CU.Velo = round((mean(Velocity, na.rm = TRUE)), digits = 1))
+
+sl <- leepbp %>%
+  filter(Pitch == "Slider") %>%
+  select(Month, Velocity)
+sldf <- sl %>%
+  group_by(Month) %>%
+  summarise(SL.Velo = round((mean(Velocity, na.rm = TRUE)), digits = 1))
+
+velo <- right_join(leeffdf, chdf, by = "Month")
+velo <- right_join(velo, sldf, by = "Month")
+velo <- right_join(velo, cudf, by = "Month")
+
+usg2 <- usgdf %>%
+  select(Month, FF.USG:SL.USG)
+pitches <- right_join(velo, usg2, by = "Month")
+head(pitches)
+pitches <- pitches %>%
+  select(Month, FF.Velo, FF.USG, CH.Velo, CH.USG, SL.Velo, SL.USG, CU.Velo, CU.USG)
+names(pitches) <- c("Month", "4-Seam", "4-Seam%", "Changeup", "Changeup%", "Slider", "Slider%", "Curveball", "Curveball%")
+#############Contact###########
+contact <- count(leepbp, Month, Contact)
+contactdf <- spread(contact, Contact, n)
+contactdf <- contactdf %>%
+  select(Month, soft, medium, hard)
+contactdf <- contactdf %>%
+  mutate(BIP = soft + medium + hard) %>%
+  mutate(`soft%` = round((soft / BIP)*100, digits = 1)) %>%
+  mutate(`medium%` = round((medium / BIP)*100, digits = 1)) %>%
+  mutate(`hard%` = round((hard / BIP)*100, digits = 1))
+
+ball <- right_join(contactdf, leedf, by = "Month")
+############Approach##############
+
+ggplot(data = leepbp) + geom_path(data = sz, aes(x = x1, y = y1)) +
+  geom_point(aes(x = x, y = y, color = Pitch)) + facet_grid(rows = vars(Bats2), cols = vars(Month)) +
+  labs(x = "feet from home plate", y = "feet above home plate", title = "Lee Seung-ho, LHP, Kiwoom, Pitch Locations",
+       subtitle = "Pitcher Perspective", caption = "Data pulled from KBO ESPN/Twitch broadcasts for 444 pitches")
+
+leeloc <- leepbp %>%
+  filter(y > -1.5)
+
+zone <- count(leeloc, Month, Region)
+zone <- spread(zone, Region, n)
+head(zone)
+zone <- zone %>%
+  mutate(Pitches = Chase + Heart + Shadow + Waste) %>%
+  mutate(Heart2 = round((Heart / Pitches) * 100, digits = 1)) %>%
+  mutate(Shadow2 = round((Shadow / Pitches)*100, digits = 1)) %>%
+  mutate(Chase2 = round((Chase / Pitches)*100, digits = 1)) %>%
+  mutate(Waste2 = round((Waste / Pitches)*100, digits = 1))
+######Pitch-by-pitch per month#########
+leefb <- leepbp %>%
+  filter(Pitch == "4-Seam")
+fb <- count(leefb, Month, Result)
+fb <- spread(fb, Result, n, fill = 0)
+
+fb <- fb %>%
+  mutate(Pitches  = `1` + `2`  + `4` + b + f + fo + go + hbp + s + ss) %>%
+  mutate(Strike = round(((s + ss + `1` + `2`  + `4` + f + fo + go) / Pitches)*100, digits = 1)) %>%
+  mutate(Whiff = round((ss) / (ss + `1` + `2`  + `4` + f + fo + go) * 100, digits = 1)) %>%
+  mutate(SwStr = round((ss / (Pitches)) * 100, digits = 1)) %>%
+  mutate(CSW = round(((ss + s) / Pitches) * 100, digits = 1)) %>%
+  mutate(CS = round((s / Pitches) * 100, digits = 1)) %>%
+  mutate(Swing = round(((ss + `1` + `2`  + `4` + f + fo + go) / (Pitches))*100, digits = 1)) %>%
+  mutate(Contact = round(((`1` + `2`  + `4` + f + fo + go) / (ss + `1` + `2` + `4` + f + fo + go) * 100), digits = 1)) %>%
+  mutate(`GO/FO` = round(go / fo, digits = 2))
+
+head(fb)
+
+fbdf <- fb %>%
+  select(Month, Pitches, Strike, Whiff, SwStr, CS, CSW, Swing, Contact, `GO/FO`)
+
+head(fbdf)
+
+names(fbdf) <- c("Month", "Pitches", "Strike%", "Whiff%", "SwStr%", "CS%", "CSW%", "Swing%", "Contact%", "GO/FO")
+
+###########CH###########
+leech2 <- leepbp %>%
+  filter(Pitch == "Changeup")
+ch <- count(leech2, Month, Result)
+ch <- spread(ch, Result, n, fill = 0)
+
+ch <- ch %>%
+  mutate(Pitches  = `1` + b + f + fo + go  + s + ss) %>%
+  mutate(Strike = round(((s + ss + `1` + f + fo + go) / Pitches)*100, digits = 1)) %>%
+  mutate(Whiff = round((ss) / (ss + `1` + f + fo + go) * 100, digits = 1)) %>%
+  mutate(SwStr = round((ss / (Pitches)) * 100, digits = 1)) %>%
+  mutate(CSW = round(((ss + s) / Pitches) * 100, digits = 1)) %>%
+  mutate(CS = round((s / Pitches) * 100, digits = 1)) %>%
+  mutate(Swing = round(((ss + `1`  + f + fo + go) / (Pitches))*100, digits = 1)) %>%
+  mutate(Contact = round(((`1` + f + fo + go) / (ss + `1` + f + fo + go) * 100), digits = 1)) %>%
+  mutate(`GO/FO` = round(go / fo, digits = 2))
+
+head(ch)
+
+chdf3 <- ch %>%
+  select(Month, Pitches, Strike, Whiff, SwStr, CS, CSW, Swing, Contact, `GO/FO`)
+
+head(chdf3)
+
+names(chdf3) <- c("Month", "Pitches", "Strike%", "Whiff%", "SwStr%", "CS%", "CSW%", "Swing%", "Contact%", "GO/FO")
+###########Curveball#############
+leecurve <- leepbp %>%
+  filter(Pitch == "Curveball")
+curve <- count(leecurve, Month, Result)
+curve <- spread(curve, Result, n, fill = 0)
+
+curve <- curve %>%
+  mutate(Pitches  = `1` + `2`  + `4` + b + f + fo + go + s + ss) %>%
+  mutate(Strike = round(((s + ss + `1` + `2`  + `4` + f + fo + go) / Pitches)*100, digits = 1)) %>%
+  mutate(Whiff = round((ss) / (ss + `1` + `2`  + `4` + f + fo + go) * 100, digits = 1)) %>%
+  mutate(SwStr = round((ss / (Pitches)) * 100, digits = 1)) %>%
+  mutate(CSW = round(((ss + s) / Pitches) * 100, digits = 1)) %>%
+  mutate(CS = round((s / Pitches) * 100, digits = 1)) %>%
+  mutate(Swing = round(((ss + `1` + `2`  + `4` + f + fo + go) / (Pitches))*100, digits = 1)) %>%
+  mutate(Contact = round(((`1` + `2`  + `4` + f + fo + go) / (ss + `1` + `2` + `4` + f + fo + go) * 100), digits = 1)) %>%
+  mutate(`GO/FO` = round(go / fo, digits = 2))
+
+head(curve)
+
+curvedf <- curve %>%
+  select(Month, Pitches, Strike, Whiff, SwStr, CS, CSW, Swing, Contact, `GO/FO`)
+
+head(curvedf)
+
+names(curvedf) <- c("Month", "Pitches", "Strike%", "Whiff%", "SwStr%", "CS%", "CSW%", "Swing%", "Contact%", "GO/FO")
+################Slider###############
+leesl <- leepbp %>%
+  filter(Pitch == "Slider")
+Slider <- count(leesl, Month, Result)
+Slider <- spread(Slider, Result, n, fill = 0)
+
+Slider <- Slider %>%
+  mutate(Pitches  = `1` + `4` + b + f + fo + go + s + ss) %>%
+  mutate(Strike = round(((s + ss + `1`  + `4` + f + fo + go) / Pitches)*100, digits = 1)) %>%
+  mutate(Whiff = round((ss) / (ss + `1`   + `4` + f + fo + go) * 100, digits = 1)) %>%
+  mutate(SwStr = round((ss / (Pitches)) * 100, digits = 1)) %>%
+  mutate(CSW = round(((ss + s) / Pitches) * 100, digits = 1)) %>%
+  mutate(CS = round((s / Pitches) * 100, digits = 1)) %>%
+  mutate(Swing = round(((ss + `1`  + `4` + f + fo + go) / (Pitches))*100, digits = 1)) %>%
+  mutate(Contact = round(((`1` + `4` + f + fo + go) / (ss + `1`+ `4` + f + fo + go) * 100), digits = 1)) %>%
+  mutate(`GO/FO` = round(go / fo, digits = 2))
+
+head(Slider)
+
+Sliderdf <- Slider %>%
+  select(Month, Pitches, Strike, Whiff, SwStr, CS, CSW, Swing, Contact, `GO/FO`)
+
+head(Sliderdf)
+
+names(Sliderdf) <- c("Month", "Pitches", "Strike%", "Whiff%", "SwStr%", "CS%", "CSW%", "Swing%", "Contact%", "GO/FO")
+
+slidelee <- leepbp %>%
+  filter(Pitch == "Slider")
+
+ggplot(data = slidelee) + geom_path(data = sz, aes(x = x1, y = y1)) +
+  geom_point(aes(x = x, y = y, color = Month), size = 2) + facet_grid(cols = vars(Bats2)) + xlim(-2, 2) +
+  labs(x = "feet from home plate", y = "feet above home plate", title = "Lee Seung-ho, LHP, Kiwoom, Sliders Locations",
+       subtitle = "Pitcher Perspective", caption = "Data pulled from KBO ESPN/Twitch broadcasts for 106 Lee Seung-ho Sliders")
+
+subset(leepbp, Pitch == "Slider" & Result == "ss" & Month == "August")
+
+chlee <- leepbp %>%
+  filter(Pitch == "Changeup")
+
+ggplot(data = chlee) + geom_path(data = sz, aes(x = x1, y = y1)) +
+  geom_point(aes(x = x, y = y, color = Month), size = 2) + facet_grid(cols = vars(Bats2)) + xlim(-2, 2) +
+  labs(x = "feet from home plate", y = "feet above home plate", title = "Lee Seung-ho, LHP, Kiwoom, Changeup Locations",
+       subtitle = "Pitcher Perspective", caption = "Data pulled from KBO ESPN/Twitch broadcasts for 62 Lee Seung-ho Sliders")
